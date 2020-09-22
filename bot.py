@@ -136,9 +136,9 @@ if __name__ == "__main__":
         if message.content.startswith('!help_poe'):
             embed = discord.Embed(title = "PoE Bot")
             embed.add_field(name = '!가격, !price', value = "자주 쓰이는 카테고리 내에서 검색")
-            embed.add_field(name = '!가격상세, !price_detail', value = "모든 카테고리 내에서 검색")
+            embed.add_field(name = '!상세가격, !detail_price', value = "모든 카테고리 내에서 검색")
 
-        if message.content.startswith('!price') or message.content.startswith('!가격') or message.content.startswith('!price_detail') or message.content.startswith('!가격상세'):
+        if message.content.startswith('!price') or message.content.startswith('!가격') or message.content.startswith('!detail_price') or message.content.startswith('!상세가격'):
 
             await message.channel.send("검색중...")
 
@@ -149,7 +149,7 @@ if __name__ == "__main__":
                 query = message.content[7:]
             elif message.content.startswith('!가격'):
                 query = message.content[4:]
-            elif message.content.startswith('!price_detail'):
+            elif message.content.startswith('!detail_price'):
                 query = message.content[11:]
                 is_simple = False
             else:
