@@ -8,11 +8,22 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
 
-def find_trade(query):
+def find_trade(query, is_simple):
     url_query = query.strip().replace(" ","%20")
 
     if len(url_query) == 0:
         return []
+
+    simple_categories = [
+        "divinationcards",
+        "prophecies",
+        "skill-gems",
+        "unique-jewels",
+        "unique-flasks",
+        "unique-weapons",
+        "unique-armours",
+        "unique-accessories"
+    ]
 
     categories = [
         "delirium-orbs",
@@ -53,7 +64,9 @@ def find_trade(query):
     
     driver = webdriver.Chrome('driver-linux/chromedriver', chrome_options=options)
 
-    for cat in categories:
+    target_cat = simple_categories if is_simple else categories
+
+    for cat in target_cat:
         url = 'https://poe.ninja/challenge/{}?name={}'.format(cat, url_query)
         driver.get(url)
 
@@ -119,16 +132,31 @@ if __name__ == "__main__":
     async def on_message(message):
         if message.author == client.user:
             return
-        if message.content.startswith('!price') or message.content.startswith('!가격'):
+
+        if message.content.startswith('!help_poe'):
+            embed = discord.Embed(title = "PoE Bot")
+            embed.add_field(name = '!가격, !price', value = "자주 쓰이는 카테고리 내에서 검색")
+            embed.add_field(name = '!가격상세, !price_detail', value = "모든 카테고리 내에서 검색")
+
+        if message.content.startswith('!price') or message.content.startswith('!가격') or message.content.startswith('!price_detail') or message.content.startswith('!가격상세'):
+
+            await message.channel.send("검색중...")
 
             query = ""
+            is_simple = True
 
             if message.content.startswith('!price'):
                 query = message.content[7:]
-            else:
+            elif message.content.startswith('!가격'):
                 query = message.content[4:]
+            elif message.content.startswith('!price_detail'):
+                query = message.content[11:]
+                is_simple = False
+            else:
+                query = message.content[6:]
+                is_simple = False
 
-            result = find_trade(query)
+            result = find_trade(query, is_simple)
 
             embed = discord.Embed(title = (query + ' 가격 검색 결과'))
             embed.add_field(name = '이름', value = blank, inline = True)
