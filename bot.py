@@ -54,11 +54,18 @@ def find_trade(query):
     driver = webdriver.Chrome('driver-window/chromedriver', chrome_options=options)
 
     for cat in categories:
-        url = f'https://poe.ninja/challenge/{cat}?name={url_query}'
+        url = 'https://poe.ninja/challenge/{}?name={}'.format(cat, url_query)
         driver.get(url)
+
         element = WebDriverWait(driver, 2).until(
             EC.element_to_be_clickable((By.CLASS_NAME, "item-overview"))
         )
+
+        lang = driver.find_element_by_xpath("//img[starts-with(@src,'https://web.poecdn.com/image/lang/')]")
+        if lang.get_attribute('title') != 'Korean':
+            lang.click()
+            driver.find_element_by_xpath("//img[@src='https://web.poecdn.com/image/lang/KR.png']").click()
+
         html = driver.page_source
         soup = BeautifulSoup(html, 'html.parser')
 
@@ -78,7 +85,7 @@ def find_trade(query):
                         if len(img) > 0:        
                             pr = p.get_text()
                             unit = unit_replace[img[0].get('title')]
-                            price_list.append(f'{pr}{unit}')
+                            price_list.append(pr + unit)
                     price = ' / '.join(price_list)
                     res.append({
                         "name": name,
@@ -115,7 +122,7 @@ if __name__ == "__main__":
 
             result = find_trade(query)
 
-            embed = discord.Embed(title = (f'{query} 가격 검색 결과'))
+            embed = discord.Embed(title = (query + ' 가격 검색 결과'))
             embed.add_field(name = '이름', value = blank, inline = True)
             embed.add_field(name = '추세', value = blank, inline = True)
             embed.add_field(name = '가격', value = blank, inline = True)
