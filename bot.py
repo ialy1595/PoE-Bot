@@ -51,20 +51,28 @@ def find_trade(query):
     options.add_argument('window-size=1920x1080')
     options.add_argument("disable-gpu")
     
-    driver = webdriver.Chrome('driver-window/chromedriver', chrome_options=options)
+    driver = webdriver.Chrome('driver-linux/chromedriver', chrome_options=options)
 
     for cat in categories:
         url = 'https://poe.ninja/challenge/{}?name={}'.format(cat, url_query)
         driver.get(url)
 
-        element = WebDriverWait(driver, 2).until(
+        WebDriverWait(driver, 2).until(
             EC.element_to_be_clickable((By.CLASS_NAME, "item-overview"))
         )
 
         lang = driver.find_element_by_xpath("//img[starts-with(@src,'https://web.poecdn.com/image/lang/')]")
         if lang.get_attribute('title') != 'Korean':
             lang.click()
-            driver.find_element_by_xpath("//img[@src='https://web.poecdn.com/image/lang/KR.png']").click()
+            
+            kr_xpath = "//img[@src='https://web.poecdn.com/image/lang/KR.png']"
+
+            WebDriverWait(driver, 2).until(
+                EC.element_to_be_clickable((By.XPATH, kr_xpath))
+            )
+            
+            btn = driver.find_element_by_xpath(kr_xpath)
+            btn.click()
 
         html = driver.page_source
         soup = BeautifulSoup(html, 'html.parser')
