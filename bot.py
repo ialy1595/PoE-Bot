@@ -63,8 +63,8 @@ def find_trade(driver, query, is_simple):
         url = 'https://poe.ninja/challenge/{}?name={}'.format(cat, url_query)
         driver.get(url)
 
-        WebDriverWait(driver, 2).until(
-            EC.element_to_be_clickable((By.CLASS_NAME, "item-overview"))
+        WebDriverWait(driver, 2, 0.1).until(
+            EC.presence_of_element_located((By.CLASS_NAME, "item-overview"))
         )
 
         lang = driver.find_element_by_xpath("//img[starts-with(@src,'https://web.poecdn.com/image/lang/')]")
@@ -73,7 +73,7 @@ def find_trade(driver, query, is_simple):
             
             kr_xpath = "//img[@src='https://web.poecdn.com/image/lang/KR.png']"
 
-            WebDriverWait(driver, 2).until(
+            WebDriverWait(driver, 2, 0.1).until(
                 EC.element_to_be_clickable((By.XPATH, kr_xpath))
             )
             
@@ -106,7 +106,7 @@ def find_trade(driver, query, is_simple):
                         "trand": trand,
                         "price": price
                     })
-        
+
     return res
 
 def find_wiki(driver, query):
@@ -125,7 +125,7 @@ def find_wiki(driver, query):
 
     driver.get(url)
 
-    WebDriverWait(driver, 2).until(
+    WebDriverWait(driver, 2, 0.1).until(
         EC.element_to_be_clickable((By.CLASS_NAME, 'searchresults'))
     )
 
@@ -160,7 +160,7 @@ def find_wiki_korean(driver, query):
 
     driver.get(url)
 
-    WebDriverWait(driver, 2).until(
+    WebDriverWait(driver, 2, 0.1).until(
         EC.element_to_be_clickable((By.CLASS_NAME, 'form-search'))
     )
 
@@ -211,10 +211,10 @@ if __name__ == "__main__":
         if message.author == client.user:
             return
 
-        if message.content.startswith('!help_poe'):
+        if message.content.startswith('!help') or message.content.startswith('!도움'):
             embed = discord.Embed(title = "PoE Bot")
-            embed.add_field(name = '!가격 ... , !price ...', value = "자주 쓰이는 카테고리 내에서 검색 (take ~10s)", inline = False)
-            embed.add_field(name = '!상세가격 ... , !detail_price ...', value = "모든 카테고리 내에서 검색 (take ~25s)", inline = False)
+            embed.add_field(name = '!가격 ... , !price ...', value = "점술카드, 예언, 스킬 젬, 고유 주얼, 고유 플라스크, 고유 무기, 고유 방어구, 고유 장신구 내에서 검색", inline = False)
+            embed.add_field(name = '!상세가격 ... , !detail_price ...', value = "모든 카테고리 내에서 검색", inline = False)
             embed.add_field(name = '!wiki ...', value = "영어 위키에서 검색", inline = False)
             embed.add_field(name = '!위키 ...', value = "한글 위키에서 검색", inline = False)
             await message.channel.send(embed = embed)
