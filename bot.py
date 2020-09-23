@@ -204,6 +204,8 @@ if __name__ == "__main__":
             embed = discord.Embed(title = "PoE Bot")
             embed.add_field(name = '!가격 ... , !price ...', value = "자주 쓰이는 카테고리 내에서 검색 (take ~10s)", inline = False)
             embed.add_field(name = '!상세가격 ... , !detail_price ...', value = "모든 카테고리 내에서 검색 (take ~25s)", inline = False)
+            embed.add_field(name = '!wiki ...', value = "영어 위키에서 검색", inline = False)
+            embed.add_field(name = '!위키 ...', value = "한글 위키에서 검색", inline = False)
             await message.channel.send(embed = embed)
 
         if message.content.startswith('!price') or message.content.startswith('!가격') or message.content.startswith('!detail_price') or message.content.startswith('!상세가격'):

@@ -25,4 +25,4 @@ Discord bot to help you play the Path of Exile
 
 ### !위키
 
-한국 위키 사이트에서 검색을 합니다.
+한글 위키 사이트에서 검색을 합니다.
