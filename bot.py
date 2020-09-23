@@ -110,7 +110,18 @@ def find_trade(driver, query, is_simple):
     return res
 
 def find_wiki(driver, query):
-    url = 'https://pathofexile.gamepedia.com/index.php?search=intitle%3A%2F{}%2F'.format(query)
+
+    swap_query = query.swapcase()
+
+    reg_query = ""
+
+    for i in range(len(query)):
+        if query[i] != swap_query[i]:
+            reg_query += '[' + query[i] + swap_query[i] + ']'
+        else:
+            reg_query += query[i]
+
+    url = 'https://pathofexile.gamepedia.com/index.php?search=intitle%3A%2F{}%2F'.format(reg_query)
 
     driver.get(url)
 
