@@ -63,7 +63,7 @@ def find_trade(driver, query, is_simple):
         url = 'https://poe.ninja/challenge/{}?name={}'.format(cat, url_query)
         driver.get(url)
 
-        WebDriverWait(driver, 2, 0.1).until(
+        WebDriverWait(driver, 10, 0.1).until(
             EC.presence_of_element_located((By.CLASS_NAME, "item-overview"))
         )
 
@@ -73,7 +73,7 @@ def find_trade(driver, query, is_simple):
             
             kr_xpath = "//img[@src='https://web.poecdn.com/image/lang/KR.png']"
 
-            WebDriverWait(driver, 2, 0.1).until(
+            WebDriverWait(driver, 10, 0.1).until(
                 EC.element_to_be_clickable((By.XPATH, kr_xpath))
             )
             
@@ -125,7 +125,7 @@ def find_wiki(driver, query):
 
     driver.get(url)
 
-    WebDriverWait(driver, 2, 0.1).until(
+    WebDriverWait(driver, 10, 0.1).until(
         EC.element_to_be_clickable((By.CLASS_NAME, 'searchresults'))
     )
 
@@ -160,7 +160,7 @@ def find_wiki_korean(driver, query):
 
     driver.get(url)
 
-    WebDriverWait(driver, 2, 0.1).until(
+    WebDriverWait(driver, 10, 0.1).until(
         EC.element_to_be_clickable((By.CLASS_NAME, 'form-search'))
     )
 
@@ -195,6 +195,7 @@ if __name__ == "__main__":
     
     driver = webdriver.Chrome('driver-linux/chromedriver', chrome_options=options)
 
+    price_result_channel = {}
 
     t = open('token.txt', 'r')
     token = t.read().rstrip()
@@ -215,13 +216,14 @@ if __name__ == "__main__":
             embed = discord.Embed(title = "PoE Bot")
             embed.add_field(name = '!가격 ... , !price ...', value = "점술카드, 예언, 스킬 젬, 고유 주얼, 고유 플라스크, 고유 무기, 고유 방어구, 고유 장신구 내에서 검색", inline = False)
             embed.add_field(name = '!상세가격 ... , !detail_price ...', value = "모든 카테고리 내에서 검색", inline = False)
+            embed.add_field(name = '!set_price_result_channel', value = "가격 결과를 출력할 채널 설정", inline = False)
             embed.add_field(name = '!wiki ...', value = "영어 위키에서 검색", inline = False)
             embed.add_field(name = '!위키 ...', value = "한글 위키에서 검색", inline = False)
             await message.channel.send(embed = embed)
 
         if message.content.startswith('!price') or message.content.startswith('!가격') or message.content.startswith('!detail_price') or message.content.startswith('!상세가격'):
 
-            await message.channel.send("가격 검색중...")
+            result_channel = price_result_channel[message.guild.id]['channel'] if message.guild.id in price_result_channel else message.channel
 
             query = ""
             is_simple = True
@@ -236,6 +238,8 @@ if __name__ == "__main__":
             else:
                 query = message.content[6:]
                 is_simple = False
+
+            process_message = await message.channel.send(query + " 가격 검색중...")
 
             result = find_trade(driver, query, is_simple)
 
@@ -257,8 +261,18 @@ if __name__ == "__main__":
                     embed.add_field(name = blank, value = r['name'], inline = True)
                     embed.add_field(name = blank, value = r['trand'], inline = True)
                     embed.add_field(name = blank, value = r['price'], inline = True)
-
-            await message.channel.send(embed = embed)
+            
+            await process_message.delete()
+            await result_channel.send(embed = embed)
+            if message.channel != result_channel:
+                await message.channel.send('{} 채널에 {} 가격 검색 결과를 출력했습니다.'.format(result_channel.name, query))
+        
+        if message.content.startswith('!set_price_result_channel'):
+            price_result_channel[message.guild.id] = {
+                'channel': message.channel,
+                'name': message.channel.name
+            }
+            await message.channel.send("이제부터 여기에 가격 검색 결과를 출력합니다.")
         
         if message.content.startswith('!wiki'):
             await message.channel.send("wiki searching...")

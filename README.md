@@ -1,5 +1,5 @@
 # PoE-Bot
-Discord bot to help you play the Path of Exile
+Path of Exile 플레이를 도와주는 디스코드 봇
 
 # Commands
 
@@ -14,6 +14,10 @@ Discord bot to help you play the Path of Exile
 ### !상세가격, !detail_price
 
 모든 범주 내에서 검색을 합니다. 시간이 더 오래 걸립니다.
+
+### !set_price_result_channel
+
+가격 결과가 채팅방을 채울 것을 대비하여 결과를 출력할 채팅방을 설정할 수 있습니다.
 
 ## 위키
 
