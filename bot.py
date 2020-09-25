@@ -80,6 +80,10 @@ def find_trade(driver, query, is_simple):
             btn = driver.find_element_by_xpath(kr_xpath)
             btn.click()
 
+            WebDriverWait(driver, 10, 0.1).until(
+                EC.presence_of_element_located((By.CLASS_NAME, "item-overview"))
+            )
+
         html = driver.page_source
         soup = BeautifulSoup(html, 'html.parser')
 
@@ -186,6 +190,61 @@ def find_wiki_korean(driver, query):
 
     return res
 
+def find_currency(driver):
+    url = 'https://poe.ninja/challenge/currency'
+
+    driver.get(url)
+
+    WebDriverWait(driver, 10, 0.1).until(
+        EC.element_to_be_clickable((By.CLASS_NAME, 'currency-table'))
+    )
+
+    lang = driver.find_element_by_xpath("//img[starts-with(@src,'https://web.poecdn.com/image/lang/')]")
+    if lang.get_attribute('title') != 'Korean':
+        lang.click()
+        
+        kr_xpath = "//img[@src='https://web.poecdn.com/image/lang/KR.png']"
+
+        WebDriverWait(driver, 10, 0.1).until(
+            EC.element_to_be_clickable((By.XPATH, kr_xpath))
+        )
+        
+        btn = driver.find_element_by_xpath(kr_xpath)
+        btn.click()
+
+        WebDriverWait(driver, 10, 0.1).until(
+            EC.element_to_be_clickable((By.CLASS_NAME, 'currency-table'))
+        )
+
+    html = driver.page_source
+    soup = BeautifulSoup(html, 'html.parser')
+
+    res = []
+
+    table = soup.find_all('table', class_='currency-table')
+
+    tbody = table[0].find_all('tbody')
+
+    result_boxes = tbody[0].find_all('tr')
+
+    for r in result_boxes:
+        not_enough = r.find_all('td', class_='not-enough-data')
+        if len(not_enough) > 0:
+            continue
+        tds = r.find_all('td')
+
+        res.append({
+            'name': tds[0].find_all('span')[0].get_text(),
+            'buy': tds[2].find_all('span')[0].get_text() + 'chaos',
+            'sell': tds[7].find_all('span')[0].get_text() + 'chaos'
+        })
+
+        if len(res) >= 10:
+            break
+
+    return res        
+
+
 if __name__ == "__main__":
 
     options = webdriver.ChromeOptions()
@@ -219,6 +278,7 @@ if __name__ == "__main__":
             embed.add_field(name = '!set_price_result_channel', value = "가격 결과를 출력할 채널 설정", inline = False)
             embed.add_field(name = '!wiki ...', value = "영어 위키에서 검색", inline = False)
             embed.add_field(name = '!위키 ...', value = "한글 위키에서 검색", inline = False)
+            embed.add_field(name = '!currency', value = "화폐 시세", inline = False)
             await message.channel.send(embed = embed)
 
         if message.content.startswith('!price') or message.content.startswith('!가격') or message.content.startswith('!detail_price') or message.content.startswith('!상세가격'):
@@ -275,9 +335,10 @@ if __name__ == "__main__":
             await message.channel.send("이제부터 여기에 가격 검색 결과를 출력합니다.")
         
         if message.content.startswith('!wiki'):
-            await message.channel.send("wiki searching...")
             query = message.content[6:]
 
+            process_message = await message.channel.send(query + "wiki searching...")
+            
             result = find_wiki(driver, query)
 
             embed_title = query + ' wiki search result'
@@ -289,16 +350,18 @@ if __name__ == "__main__":
 
             if len(result) == 0:
                 embed.add_field(name = 'There is', value = "no result", inline = False)
-                await message.channel.send(embed = embed)
             else:
                 for r in result:
                     embed.add_field(name = r['title'], value = r['link'], inline = False)
-                await message.channel.send(embed = embed)
+            
+            await process_message.delete()
+            await message.channel.send(embed = embed)
 
         if message.content.startswith('!위키'):
-            await message.channel.send("위키 검색중...")
             query = message.content[4:]
-
+            
+            process_message = await message.channel.send(query + "위키 검색중...")
+            
             result = find_wiki_korean(driver, query)
 
             embed_title = query + ' 위키 검색 결과'
@@ -314,6 +377,35 @@ if __name__ == "__main__":
             else:
                 for r in result:
                     embed.add_field(name = r['title'], value = r['link'], inline = False)
-                await message.channel.send(embed = embed)
+            
+            await process_message.delete()
+            await message.channel.send(embed = embed)
+        
+        if message.content.startswith('!currency'):
+            process_message = await message.channel.send("화폐 시세 검색중...")
+
+            result = find_currency(driver)
+
+            embed = discord.Embed(title = "현재 화폐 시세")
+            embed.add_field(name = '화폐', value = blank, inline = True)
+            embed.add_field(name = '살 때', value = blank, inline = True)
+            embed.add_field(name = '팔 때', value = blank, inline = True)
+
+            for r in result[:5]:
+                embed.add_field(name = blank, value = r['name'], inline = True)
+                embed.add_field(name = blank, value = r['buy'], inline = True)
+                embed.add_field(name = blank, value = r['sell'], inline = True)
+            
+            await process_message.delete()
+            await message.channel.send(embed = embed)
+
+            embed = discord.Embed()
+
+            for r in result[5:]:
+                embed.add_field(name = blank, value = r['name'], inline = True)
+                embed.add_field(name = blank, value = r['buy'], inline = True)
+                embed.add_field(name = blank, value = r['sell'], inline = True)
+            
+            await message.channel.send(embed = embed)
                 
     client.run(token)
