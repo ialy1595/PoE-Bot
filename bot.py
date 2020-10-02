@@ -87,30 +87,28 @@ def find_trade(driver, query, is_simple):
         html = driver.page_source
         soup = BeautifulSoup(html, 'html.parser')
 
-        table = soup.find_all('table', class_='table-striped')
-        if len(table) > 0:
-            body = table[0].find_all('tbody')
-            if len(body):
-                trs = body[0].find_all('tr')
-                for t in trs:
-                    tds = t.find_all('td')
-                    name = tds[0].find_all('div')[0].find_all('div')[0].get_text()
-                    trand = tds[-3].find_all('span')[0].find_all('div')[1].find_all('span')[0].get_text()
-                    price_list = []
-                    price_span = tds[-2].find_all('div')[0].find_all('span')
-                    for p in price_span:
-                        img = p.find_all('img')
-                        if len(img) > 0:        
-                            pr = p.get_text()
-                            unit = unit_replace[img[0].get('title')]
-                            price_list.append(pr + unit)
-                    price = ' / '.join(price_list)
-                    res.append({
-                        "name": name,
-                        "trand": trand,
-                        "price": price
-                    })
-
+        tbody = soup.select_one('table.table-striped > tbody')
+        if tbody is not None:
+            trs = tbody.select('tr')
+            for t in trs:
+                tds = t.select('td')
+                name = tds[0].select_one('div > div').get_text()
+                trand = tds[-3].select('span > div')[1].select_one('span').get_text()
+                price_list = []
+                price_span = tds[-2].select_one('div').select('span')
+                for p in price_span:
+                    img = p.select_one('img')
+                    if img is not None:
+                        pr = p.get_text()
+                        unit = unit_replace[img.get('title')]
+                        price_list.append(pr + unit)
+                price = ' / '.join(price_list)
+                res.append({
+                    "name": name,
+                    "trand": trand,
+                    "price": price
+                })
+    
     return res
 
 def find_wiki(driver, query):
@@ -136,22 +134,22 @@ def find_wiki(driver, query):
     html = driver.page_source
     soup = BeautifulSoup(html, 'html.parser')
 
-    sr = soup.find_all('div', class_='searchresults')
-    no_result = sr[0].find_all('p', class_='mw-search-nonefound')
+    sr = soup.select_one('div.searchresults')
+    no_result = sr.select('p.mw-search-nonefound')
 
     if len(no_result) > 0:
         return []
     
     res = []
 
-    result_boxes = sr[0].find_all('li', class_='mw-search-result')
+    result_boxes = sr.select('li.mw-search-result')
 
     top_results = result_boxes if len(result_boxes) <= 5 else result_boxes[:5]
 
     for r in top_results:
-        content = r.find_all('div')[0]
+        content = r.select_one('div')
         title = content.get_text()
-        link = "https://pathofexile.gamepedia.com" + content.find_all('a')[0].get('href')
+        link = "https://pathofexile.gamepedia.com" + content.select_one('a').get('href')
         res.append({
             'title': title,
             'link': link
@@ -171,16 +169,16 @@ def find_wiki_korean(driver, query):
     html = driver.page_source
     soup = BeautifulSoup(html, 'html.parser')
 
-    page = soup.find_all('div', class_='page')
+    page = soup.select_one('div.page')
 
     res = []
 
-    result_boxes = page[0].find_all('li', class_='list-group-item')
+    result_boxes = page.select('li.list-group-item')
 
     top_results = result_boxes if len(result_boxes) <= 5 else result_boxes[:5]
 
     for r in top_results:
-        content = r.find_all('a')[0]
+        content = r.select_one('a')
         title = content.get_text()
         link = "https://poedb.tw/" + content.get('href')
         res.append({
@@ -221,22 +219,18 @@ def find_currency(driver):
 
     res = []
 
-    table = soup.find_all('table', class_='currency-table')
-
-    tbody = table[0].find_all('tbody')
-
-    result_boxes = tbody[0].find_all('tr')
+    result_boxes = soup.select('table.currency-table > tbody > tr')
 
     for r in result_boxes:
-        not_enough = r.find_all('td', class_='not-enough-data')
-        if len(not_enough) > 0:
+        not_enough = r.select_one('td.not-enough-data')
+        if not_enough is not None:
             continue
-        tds = r.find_all('td')
+        tds = r.select('td')
 
         res.append({
-            'name': tds[0].find_all('span')[0].get_text(),
-            'buy': tds[2].find_all('span')[0].get_text() + 'chaos',
-            'sell': tds[7].find_all('span')[0].get_text() + 'chaos'
+            'name': tds[0].select_one('span').get_text(),
+            'buy': tds[2].select_one('span').get_text() + 'chaos',
+            'sell': tds[7].select_one('span').get_text() + 'chaos'
         })
 
         if len(res) >= 10:
@@ -337,7 +331,7 @@ if __name__ == "__main__":
         if message.content.startswith('!wiki'):
             query = message.content[6:]
 
-            process_message = await message.channel.send(query + "wiki searching...")
+            process_message = await message.channel.send(query + " wiki searching...")
             
             result = find_wiki(driver, query)
 
@@ -360,7 +354,7 @@ if __name__ == "__main__":
         if message.content.startswith('!위키'):
             query = message.content[4:]
             
-            process_message = await message.channel.send(query + "위키 검색중...")
+            process_message = await message.channel.send(query + " 위키 검색중...")
             
             result = find_wiki_korean(driver, query)
 
@@ -373,7 +367,6 @@ if __name__ == "__main__":
 
             if len(result) == 0:
                 embed.add_field(name = '검색 결과가', value = "없습니다", inline = False)
-                await message.channel.send(embed = embed)
             else:
                 for r in result:
                     embed.add_field(name = r['title'], value = r['link'], inline = False)
