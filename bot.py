@@ -1,6 +1,8 @@
 import discord
 import asyncio
 import os
+import datetime
+from pytz import timezone, utc
 from discord.ext import commands
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -238,6 +240,25 @@ def find_currency(driver):
 
     return res        
 
+def calc_d_day(doom):
+    KST = datetime.timezone(datetime.timedelta(hours=9))
+    utc_now = datetime.datetime.utcnow()
+    kr_now = utc.localize(utc_now).astimezone(KST)
+
+    delta = doom - kr_now    
+
+    if delta.days < 0:
+        d_days = -1 - delta.days
+        d_hour = (86400 - delta.seconds) // 3600
+        d_minutes = ((86400 - delta.seconds) // 60) % 60
+        d_seconds = (86400 - delta.seconds) % 60
+        return [False, d_days, d_hour, d_minutes, d_seconds]
+    else:
+        d_days = delta.days
+        d_hour = delta.seconds // 3600
+        d_minutes = (delta.seconds // 60) % 60
+        d_seconds = delta.seconds % 60
+        return [True, d_days, d_hour, d_minutes, d_seconds]
 
 if __name__ == "__main__":
 
@@ -249,6 +270,8 @@ if __name__ == "__main__":
     driver = webdriver.Chrome('driver-linux/chromedriver', chrome_options=options)
 
     price_result_channel = {}
+
+    d_day_list = {}
 
     t = open('token.txt', 'r')
     token = t.read().rstrip()
@@ -264,6 +287,64 @@ if __name__ == "__main__":
     async def on_message(message):
         if message.author == client.user:
             return
+
+        if message.guild.id not in d_day_list:
+            d_day_list[message.guild.id] = {}
+
+        for key in d_day_list[message.guild.id]:
+            if message.content == '!' + key:
+                delta = calc_d_day(d_day_list[message.guild.id][key])
+                if delta[0]:
+                    await message.channel.send('{}일 {}시간 {}분 {}초 남았습니다.'.format(delta[1], delta[2], delta[3], delta[4]))
+                else:
+                    await message.channel.send('{}일 {}시간 {}분 {}초 지났습니다.'.format(delta[1], delta[2], delta[3], delta[4]))
+
+        if message.content.startswith('!디데이'):
+            
+            
+            query = message.content[4:]
+            query_words = query.split()
+
+            if len(query_words) == 0:
+                return
+            elif len(query_words) == 1:
+                d_name = query_words[0]
+                if d_name in d_day_list[message.guild.id]:
+                    d_datetime = d_day_list[message.guild.id][d_name]
+                    delta = calc_d_day(d_datetime)
+                    if delta[0]:
+                        await message.channel.send('{}일 {}시간 {}분 {}초 남았습니다.'.format(delta[1], delta[2], delta[3], delta[4]))
+                    else:
+                        await message.channel.send('{}일 {}시간 {}분 {}초 지났습니다.'.format(delta[1], delta[2], delta[3], delta[4]))
+                else:
+                    await message.channel.send('{} 디데이가 아직 등록되지 않았습니다.'.format(d_name))
+                    await message.channel.send('!디데이 추가 (이름) (YYYY-MM-DD) ?(HH:MM:SS) 로 등록해주세요.')
+                
+            else:
+                if query_words[0] == '추가':
+                    d_name = query_words[1]
+                    d_date = query_words[2].split('-')
+                    d_time = [23, 59, 59] if len(query_words) <= 3 else query_words[3].split(':')
+
+                    KST = datetime.timezone(datetime.timedelta(hours=9))
+                    d_datetime = datetime.datetime(int(d_date[0]), int(d_date[1]), int(d_date[2]), int(d_time[0]), int(d_time[1]), int(d_time[2]), tzinfo=KST)
+
+                    d_day_list[message.guild.id][d_name] = d_datetime
+                    delta = calc_d_day(d_datetime)
+                    if delta[0]:
+                        await message.channel.send('{}일 {}시간 {}분 {}초 남은 {} 디데이가 등록되었습니다.'.format(delta[1], delta[2], delta[3], delta[4], d_name))
+                    else:
+                        await message.channel.send('{}일 {}시간 {}분 {}초 지난 {} 디데이가 등록되었습니다.'.format(delta[1], delta[2], delta[3], delta[4], d_name))
+                elif query_words[0] == '삭제':
+                    d_name = query_words[1]
+                    if d_name in d_day_list[message.guild.id]:
+                        d_day_list[message.guild.id].pop(d_name)
+                        await message.channel.send('{} 디데이가 삭제되었습니다.'.format(d_name))
+                    else:
+                        await message.channel.send('{} 디데이가 아직 등록되지 않았습니다.'.format(d_name))
+                        await message.channel.send('!디데이 추가 (이름) (YYYY-MM-DD) ?(HH:MM:SS) 로 등록해주세요.')
+            
+
 
         if message.content.startswith('!help') or message.content.startswith('!도움'):
             embed = discord.Embed(title = "PoE Bot")
