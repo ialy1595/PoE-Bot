@@ -9,6 +9,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
+import sqlite3
 
 def find_trade(driver, query, is_simple):
     url_query = query.strip().replace(" ","%20")
@@ -260,7 +261,35 @@ def calc_d_day(doom):
         d_seconds = delta.seconds % 60
         return [True, d_days, d_hour, d_minutes, d_seconds]
 
+def adapt_datetime(dt):
+    ts = dt.strftime('%c')
+    tz = dt.strftime('%z')
+    if len(tz) == 0:
+        tz = '+0000'
+    return '{} {}'.format(ts, tz)
+
+def convert_datetime(dt):
+    return datetime.datetime.strptime(dt.decode(), '%c %z')
+
 if __name__ == "__main__":
+
+    sqlite3.register_adapter(datetime.datetime, adapt_datetime)
+    sqlite3.register_converter('datetime', convert_datetime)
+    
+    conn = sqlite3.connect("poe.db", detect_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
+
+    cur = conn.cursor()
+
+    create_table_query = '''
+                         CREATE TABLE IF NOT EXISTS Dday (
+                            id INTEGER AUTO_INCREMENT PRIMARY KEY,
+                            guild TEXT NOT NULL,
+                            name TEXT NOT NULL,
+                            date datetime
+                         );
+                         '''
+    cur.execute(create_table_query)
+    conn.commit()
 
     options = webdriver.ChromeOptions()
     options.add_argument('headless')
@@ -270,8 +299,6 @@ if __name__ == "__main__":
     driver = webdriver.Chrome('driver-linux/chromedriver', chrome_options=options)
 
     price_result_channel = {}
-
-    d_day_list = {}
 
     t = open('token.txt', 'r')
     token = t.read().rstrip()
@@ -288,20 +315,21 @@ if __name__ == "__main__":
         if message.author == client.user:
             return
 
-        if message.guild.id not in d_day_list:
-            d_day_list[message.guild.id] = {}
-
-        for key in d_day_list[message.guild.id]:
-            if message.content == '!' + key:
-                delta = calc_d_day(d_day_list[message.guild.id][key])
-                if delta[0]:
-                    await message.channel.send('{}일 {}시간 {}분 {}초 남았습니다.'.format(delta[1], delta[2], delta[3], delta[4]))
-                else:
-                    await message.channel.send('{}일 {}시간 {}분 {}초 지났습니다.'.format(delta[1], delta[2], delta[3], delta[4]))
+        if message.content.startswith('!'):
+            query = message.content[1:]
+            query_words = query.split()
+            if len(query_words) == 1:
+                find_date_query = 'SELECT date from Dday where guild = ? and name = ?'
+                cur.execute(find_date_query, (message.guild.id, query))
+                result = cur.fetchall()
+                for row in result:
+                    delta = calc_d_day(row[0])
+                    if delta[0]:
+                        await message.channel.send('{}일 {}시간 {}분 {}초 남았습니다.'.format(delta[1], delta[2], delta[3], delta[4]))
+                    else:
+                        await message.channel.send('{}일 {}시간 {}분 {}초 지났습니다.'.format(delta[1], delta[2], delta[3], delta[4]))
 
         if message.content.startswith('!디데이'):
-            
-            
             query = message.content[4:]
             query_words = query.split()
 
@@ -309,13 +337,16 @@ if __name__ == "__main__":
                 return
             elif len(query_words) == 1:
                 d_name = query_words[0]
-                if d_name in d_day_list[message.guild.id]:
-                    d_datetime = d_day_list[message.guild.id][d_name]
-                    delta = calc_d_day(d_datetime)
-                    if delta[0]:
-                        await message.channel.send('{}일 {}시간 {}분 {}초 남았습니다.'.format(delta[1], delta[2], delta[3], delta[4]))
-                    else:
-                        await message.channel.send('{}일 {}시간 {}분 {}초 지났습니다.'.format(delta[1], delta[2], delta[3], delta[4]))
+                find_date_query = 'SELECT date from Dday where guild = ? and name = ?'
+                cur.execute(find_date_query, (message.guild.id, query))
+                result = cur.fetchall()
+                if len(result) > 0:
+                    for row in result:
+                        delta = calc_d_day(row[0])
+                        if delta[0]:
+                            await message.channel.send('{}일 {}시간 {}분 {}초 남았습니다.'.format(delta[1], delta[2], delta[3], delta[4]))
+                        else:
+                            await message.channel.send('{}일 {}시간 {}분 {}초 지났습니다.'.format(delta[1], delta[2], delta[3], delta[4]))
                 else:
                     await message.channel.send('{} 디데이가 아직 등록되지 않았습니다.'.format(d_name))
                     await message.channel.send('!디데이 추가 (이름) (YYYY-MM-DD) ?(HH:MM:SS) 로 등록해주세요.')
@@ -329,16 +360,28 @@ if __name__ == "__main__":
                     KST = datetime.timezone(datetime.timedelta(hours=9))
                     d_datetime = datetime.datetime(int(d_date[0]), int(d_date[1]), int(d_date[2]), int(d_time[0]), int(d_time[1]), int(d_time[2]), tzinfo=KST)
 
-                    d_day_list[message.guild.id][d_name] = d_datetime
+                    insert_date_query = 'insert into Dday(guild, name, date) VALUES (?, ?, ?)'
+                    cur.execute(insert_date_query, (message.guild.id, d_name, d_datetime))
+                    conn.commit()
+
                     delta = calc_d_day(d_datetime)
                     if delta[0]:
                         await message.channel.send('{}일 {}시간 {}분 {}초 남은 {} 디데이가 등록되었습니다.'.format(delta[1], delta[2], delta[3], delta[4], d_name))
                     else:
                         await message.channel.send('{}일 {}시간 {}분 {}초 지난 {} 디데이가 등록되었습니다.'.format(delta[1], delta[2], delta[3], delta[4], d_name))
+
                 elif query_words[0] == '삭제':
                     d_name = query_words[1]
-                    if d_name in d_day_list[message.guild.id]:
-                        d_day_list[message.guild.id].pop(d_name)
+
+                    find_date_query = 'SELECT date from Dday where guild = ? and name = ?'
+                    cur.execute(find_date_query, (message.guild.id, d_name))
+                    result = cur.fetchall()
+
+                    if len(result) > 0:
+                        delete_date_query = 'delete from Dday where guild = ? and name = ?'
+                        cur.execute(delete_date_query, (message.guild.id, d_name))
+                        result = cur.fetchall()
+                        conn.commit()
                         await message.channel.send('{} 디데이가 삭제되었습니다.'.format(d_name))
                     else:
                         await message.channel.send('{} 디데이가 아직 등록되지 않았습니다.'.format(d_name))
@@ -354,6 +397,9 @@ if __name__ == "__main__":
             embed.add_field(name = '!wiki ...', value = "영어 위키에서 검색", inline = False)
             embed.add_field(name = '!위키 ...', value = "한글 위키에서 검색", inline = False)
             embed.add_field(name = '!currency', value = "화폐 시세", inline = False)
+            embed.add_field(name = '!디데이 추가 ... YYYY-MM-DD (HH-MM-SS)', value = "디데이 추가", inline = False)
+            embed.add_field(name = '!디데이 삭제 ...', value = "디데이 삭제", inline = False)
+            embed.add_field(name = '!디데이 ... or !...', value = "디데이 확인", inline = False)
             await message.channel.send(embed = embed)
 
         if message.content.startswith('!price') or message.content.startswith('!가격') or message.content.startswith('!detail_price') or message.content.startswith('!상세가격'):
