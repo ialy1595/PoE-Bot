@@ -131,3 +131,7 @@ dmypy.json
 # token
 
 token.txt
+
+# db
+
+*.db
